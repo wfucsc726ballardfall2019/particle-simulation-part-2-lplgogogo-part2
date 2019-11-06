@@ -3,6 +3,16 @@
 #include <assert.h>
 #include <math.h>
 #include "common.h"
+#include <vector>
+#include <iostream>
+using namespace std;
+
+// constant copied from common.cpp for use
+#define density 0.0005
+#define mass    0.01
+#define cutoff  0.01
+#define min_r   (cutoff/100)
+#define dt      0.0005
 
 //
 //  benchmarking program
@@ -12,16 +22,16 @@ int main( int argc, char **argv )
     int navg,nabsavg=0;
     double davg,dmin, absmin=1.0, absavg=0.0;
 
-    if( find_option( argc, argv, "-h" ) >= 0 )
-    {
-        printf( "Options:\n" );
-        printf( "-h to see this help\n" );
-        printf( "-n <int> to set the number of particles\n" );
-        printf( "-o <filename> to specify the output file name\n" );
-        printf( "-s <filename> to specify a summary file name\n" );
-        printf( "-no turns off all correctness checks and particle output\n");
-        return 0;
-    }
+        if( find_option( argc, argv, "-h" ) >= 0 )
+        {
+            printf( "Options:\n" );
+            printf( "-h to see this help\n" );
+            printf( "-n <int> to set the number of particles\n" );
+            printf( "-o <filename> to specify the output file name\n" );
+            printf( "-s <filename> to specify a summary file name\n" );
+            printf( "-no turns off all correctness checks and particle output\n");
+            return 0;
+        }
     
     int n = read_int( argc, argv, "-n", 1000 );
 
@@ -35,6 +45,16 @@ int main( int argc, char **argv )
     set_size( n );
     init_particles( n, particles );
     
+    //calculate the gridSize, binSize, and then number of bin on one side;
+    double gridSize = sqrt(n * density);
+    double binSize = cutoff * 2;     // equals to the diameter of the circle
+    int binNum = int(gridSize / binSize) + 1; // the binNum should be +1
+    cout << binNum <<endl;
+
+    int NumberOfBins = binNum * binNum;
+
+    vector<vector<int> >bin(NumberOfBins);
+
     //
     //  simulate a number of time steps
     //
@@ -42,43 +62,57 @@ int main( int argc, char **argv )
 	
     for( int step = 0; step < NSTEPS; step++ )
     {
-	navg = 0;
+	    navg = 0;
         davg = 0.0;
-	dmin = 1.0;
-        //
-        //  compute forces
-        //
-        for( int i = 0; i < n; i++ )
-        {
-            particles[i].ax = particles[i].ay = 0;
-            for (int j = 0; j < n; j++ )
-				apply_force( particles[i], particles[j],&dmin,&davg,&navg);
-        }
- 
-        //
-        //  move particles
-        //
-        for( int i = 0; i < n; i++ ) 
-            move( particles[i] );		
+	    dmin = 1.0;
 
-        if( find_option( argc, argv, "-no" ) == -1 )
-        {
-          //
-          // Computing statistical data
-          //
-          if (navg) {
-            absavg +=  davg/navg;
-            nabsavg++;
-          }
-          if (dmin < absmin) absmin = dmin;
-		
-          //
-          //  save if necessary
-          //
-          if( fsave && (step%SAVEFREQ) == 0 )
-              save( fsave, n, particles );
+            //put all the particles into corresponding bins
+            for (int i = 0; i < n; i++){
+                int row = floor(particles[i].x / binSize);     //calculate the row index of the bin
+                int col = floor(particles[i].y / binSize);     //calculate the column index of the bin
+                bin[row * binNum + col].push_back(i);      //put the particle in to the bin in row major
+            }
+
+        for (int i = 0; i < n; i++){
+            particles[i].ax = particles[i].ay = 0;      // initialize acceleration
+            int row = floor(particles[i].x / binSize);     //calculate the row index of the bin
+            int col = floor(particles[i].y / binSize);     //calculate the column index of the bin
+
+            for(int r = max(0,row -1); r<= min(row+1,binNum-1); r++){
+                for(int c = max(0,col -1); c<= min(col+1,binNum-1); c++ ){
+                     for (int l = 0; l < bin[r*binNum + c].size(); l++){
+                                 int fa = bin[r*binNum + c].at(l);
+                                 apply_force(particles[i], particles[fa], &dmin, &davg, &navg);
+                        }
+                }
+            }
         }
-    }
+
+            for( int i = 0; i < n; i++ ) 
+                move( particles[i] );	
+
+            for (int i = 0; i < binNum*binNum; i++)
+                bin[i].resize(0);	
+
+            if( find_option( argc, argv, "-no" ) == -1 )
+            {
+            //
+            // Computing statistical data
+            //
+            if (navg) {
+                absavg +=  davg/navg;
+                nabsavg++;
+            }
+            if (dmin < absmin) absmin = dmin;
+            
+            //
+            //  save if necessary
+            //
+            if( fsave && (step%SAVEFREQ) == 0 )
+                save( fsave, n, particles );
+            }
+        }
+    
     simulation_time = read_timer( ) - simulation_time;
     
     printf( "n = %d, simulation time = %g seconds", n, simulation_time);
