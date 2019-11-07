@@ -5,6 +5,7 @@
 #include "common.h"
 #include <vector>
 #include <math.h>
+#include <iostream>
 
 using namespace std;
 
@@ -44,8 +45,8 @@ int main( int argc, char **argv )
     char *sumname = read_string( argc, argv, "-s", NULL );
     
 
+  
     
-
     //
     //  set up MPI
     //
@@ -118,7 +119,7 @@ int main( int argc, char **argv )
         //  collect all global data locally (not good idea to do)
         //
         //MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
-        
+      
         //put all the particles into corresponding bins
         for (int i = 0; i < n; i++){
             int row = floor(particles[i].x / binSize);     //calculate the row index of the bin
@@ -136,6 +137,23 @@ int main( int argc, char **argv )
         //
         //  compute all forces
         //
+        // cout<<rank<<endl;
+
+        // for(int i = rank*nlocal ; i<(rank+1)*nlocal ; i++){
+        //   local[i].ax = local[i].ay = 0;
+        //   int row = floor(local[i].x / binSize);     //calculate the row index of the bin
+        //   int col = floor(local[i].y / binSize);     //calculate the column index of the bin
+        //   for(int r = max(0,row -1); r<= min(row+1,binNum-1); r++){
+        //         for(int c = max(0,col -1); c<= min(col+1,binNum-1); c++ ){
+        //             for (int l = 0; l < bin[r*binNum + c].size(); l++){
+        //                 int fa = bin[r*binNum + c].at(l);
+        //                 apply_force(local[i], local[fa], &dmin, &davg, &navg);
+        //             }
+        //         }
+        //     }
+        
+        // }
+
         for( int i = 0; i < nlocal; i++ )
         {
             local[i].ax = local[i].ay = 0;
@@ -166,8 +184,17 @@ int main( int argc, char **argv )
         //
         //  move particles
         //
+
+        // for(int i = rank*nlocal ; i<(rank+1)*nlocal ; i++){
+        //   move(local[i]);
+        // }
+
+        // for (int i = 0; i < binNum*binNum; i++){
+        //     bin[i].resize(0);
+        // }
         for( int i = 0; i < nlocal; i++ )
             move( local[i] );
+
     }
     simulation_time = read_timer( ) - simulation_time;
   
