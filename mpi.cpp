@@ -33,14 +33,14 @@ int main( int argc, char **argv )
     {
         printf( "Options:\n" );
         printf( "-h to see this help\n" );
-        printf( "-n <int> to set the number of particles\n" );
+        printf( "-m <int> to set the number of particles\n" );
         printf( "-o <filename> to specify the output file name\n" );
         printf( "-s <filename> to specify a summary file name\n" );
         printf( "-no turns off all correctness checks and particle output\n");
         return 0;
     }
     
-    int n = read_int( argc, argv, "-n", 1000 );
+    int n = read_int( argc, argv, "-m", 1000 );
     char *savename = read_string( argc, argv, "-o", NULL );
     char *sumname = read_string( argc, argv, "-s", NULL );
     
@@ -95,7 +95,8 @@ int main( int argc, char **argv )
     //MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
     
     //broadcast particles to every thread
-    MPI_Bcast(&particles, n, PARTICLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(particles, n, PARTICLE, 0, MPI_COMM_WORLD);
+    //printf("Flag1");
 
     //calculate the gridSize, binSize, and then number of bin on one side;
     double gridSize = sqrt(n * density);
@@ -139,27 +140,32 @@ int main( int argc, char **argv )
         //
         // cout<<rank<<endl;
 
-        // for(int i = rank*nlocal ; i<(rank+1)*nlocal ; i++){
-        //   local[i].ax = local[i].ay = 0;
-        //   int row = floor(local[i].x / binSize);     //calculate the row index of the bin
-        //   int col = floor(local[i].y / binSize);     //calculate the column index of the bin
-        //   for(int r = max(0,row -1); r<= min(row+1,binNum-1); r++){
-        //         for(int c = max(0,col -1); c<= min(col+1,binNum-1); c++ ){
-        //             for (int l = 0; l < bin[r*binNum + c].size(); l++){
-        //                 int fa = bin[r*binNum + c].at(l);
-        //                 apply_force(local[i], local[fa], &dmin, &davg, &navg);
-        //             }
-        //         }
-        //     }
+        for(int i = rank*nlocal ; i<(rank+1)*nlocal ; i++){
+         // printf("Flag2");
+          particles[i].ax = particles[i].ay = 0;
+          int row = floor(particles[i].x / binSize);     //calculate the row index of the bin
+          int col = floor(particles[i].y / binSize);     //calculate the column index of the bin
+          for(int r = max(0,row -1); r<= min(row+1,binNum-1); r++){
+           // printf("Flag3");
+                for(int c = max(0,col -1); c<= min(col+1,binNum-1); c++ ){
+                  //printf("Flag4");
+                    for (int l = 0; l < bin[r*binNum + c].size(); l++){
+                     // printf("Flag5");
+                        int fa = bin[r*binNum + c].at(l);
+                        apply_force(particles[i], particles[fa], &dmin, &davg, &navg);
+                       // printf("Flag6");
+                    }
+                }
+            }
         
-        // }
-
-        for( int i = 0; i < nlocal; i++ )
-        {
-            local[i].ax = local[i].ay = 0;
-            for (int j = 0; j < n; j++ )
-                apply_force( local[i], particles[j], &dmin, &davg, &navg );
         }
+
+        // for( int i = 0; i < nlocal; i++ )
+        // {
+        //     local[i].ax = local[i].ay = 0;
+        //     for (int j = 0; j < n; j++ )
+        //         apply_force( local[i], particles[j], &dmin, &davg, &navg );
+        // }
      
         if( find_option( argc, argv, "-no" ) == -1 )
         {
@@ -185,15 +191,15 @@ int main( int argc, char **argv )
         //  move particles
         //
 
-        // for(int i = rank*nlocal ; i<(rank+1)*nlocal ; i++){
-        //   move(local[i]);
-        // }
+        for(int i = rank*nlocal ; i<(rank+1)*nlocal ; i++){
+          move(particles[i]);
+        }
 
-        // for (int i = 0; i < binNum*binNum; i++){
-        //     bin[i].resize(0);
-        // }
-        for( int i = 0; i < nlocal; i++ )
-            move( local[i] );
+        for (int i = 0; i < binNum*binNum; i++){
+            bin[i].resize(0);
+        }
+        // for( int i = 0; i < nlocal; i++ )
+        //     move( local[i] );
 
     }
     simulation_time = read_timer( ) - simulation_time;
