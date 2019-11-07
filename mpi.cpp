@@ -3,6 +3,17 @@
 #include <stdio.h>
 #include <assert.h>
 #include "common.h"
+#include <vector>
+#include <math.h>
+
+using namespace std;
+
+// constant copied from common.cpp for use
+#define density 0.0005
+#define mass    0.01
+#define cutoff  0.01
+#define min_r   (cutoff/100)
+#define dt      0.0005
 
 //
 //  benchmarking program
@@ -32,6 +43,9 @@ int main( int argc, char **argv )
     char *savename = read_string( argc, argv, "-o", NULL );
     char *sumname = read_string( argc, argv, "-s", NULL );
     
+
+    
+
     //
     //  set up MPI
     //
@@ -39,7 +53,7 @@ int main( int argc, char **argv )
     MPI_Init( &argc, &argv );
     MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-    
+
     //
     //  allocate generic resources
     //
@@ -77,8 +91,20 @@ int main( int argc, char **argv )
     set_size( n );
     if( rank == 0 )
         init_particles( n, particles );
-    MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
+    //MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
     
+    //broadcast particles to every thread
+    MPI_Bcast(&particles, n, PARTICLE, 0, MPI_COMM_WORLD);
+
+    //calculate the gridSize, binSize, and then number of bin on one side;
+    double gridSize = sqrt(n * density);
+    double binSize = cutoff * 2;     // equals to the diameter of the circle
+    int binNum = int(gridSize / binSize) + 1; // the binNum should be +1
+    int NumberOfBins = binNum * binNum;
+
+    //initialize the grid
+    vector<vector<int> > bin(NumberOfBins);
+
     //
     //  simulate a number of time steps
     //
@@ -91,8 +117,15 @@ int main( int argc, char **argv )
         // 
         //  collect all global data locally (not good idea to do)
         //
-        MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
+        //MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
         
+        //put all the particles into corresponding bins
+        for (int i = 0; i < n; i++){
+            int row = floor(particles[i].x / binSize);     //calculate the row index of the bin
+            int col = floor(particles[i].y / binSize);     //calculate the column index of the bin
+            bin[row * binNum + col].push_back(i);      //put the particle in to the bin in row major
+        }
+
         //
         //  save current step if necessary (slightly different semantics than in other codes)
         //
