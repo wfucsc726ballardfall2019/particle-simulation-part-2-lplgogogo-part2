@@ -23,7 +23,7 @@ int main( int argc, char **argv )
 {    
     int navg, nabsavg=0;
     double dmin, absmin=1.0,davg,absavg=0.0;
-    double rdavg,rdmin;
+    double rdavg,rdmin,rst;
     int rnavg; 
  
     //
@@ -159,7 +159,7 @@ int main( int argc, char **argv )
         MPI_Reduce(&navg,&rnavg,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
         MPI_Reduce(&dmin,&rdmin,1,MPI_DOUBLE,MPI_MIN,0,MPI_COMM_WORLD);
         
-        if (true){
+        if (rank == 0){
           //
           // Computing statistical data
           //
@@ -202,19 +202,24 @@ int main( int argc, char **argv )
       //MPI_Barrier(MPI_COMM_WORLD);
 
       for (int i = rank*particle_per_proc ; i<rank*particle_per_proc+nlocal ; i++){
-        MPI_Allgather(&temp[i], 1, PARTICLE, &temp[i], 1, PARTICLE, MPI_COMM_WORLD);
+        MPI_Gather(&temp[i], 1, PARTICLE, &temp[i], 1, PARTICLE, 0, MPI_COMM_WORLD);
+        //MPI_Allgather(&temp[i], 1, PARTICLE, &temp[i], 1, PARTICLE, MPI_COMM_WORLD);
       }
+      // MPI_Allgatherv(temp, n, PARTICLE, temp, n, partition_offsets, PARTICLE, MPI_COMM_WORLD);
 
-      if (rank == 0){
-        for(int i = 0; i<n; i++){
+      for (int i = 0; i<n;i++){
+        MPI_Bcast(&temp[i], 1, PARTICLE, 0, MPI_COMM_WORLD);
+      }
+      
+      for(int i = 0; i<n; i++){
         particles[i].x = temp[i].x;
         particles[i].y = temp[i].y;
         particles[i].ax = temp[i].ax;
         particles[i].ay = temp[i].ay;
         particles[i].vx = temp[i].vx;
         particles[i].vy = temp[i].vy;
-        }
       }
+      
       //MPI_Barrier(MPI_COMM_WORLD);
       
       // if (rank != 0){
@@ -236,7 +241,8 @@ int main( int argc, char **argv )
       //cout << "This is: " << step << "th iteration time." << endl;
     }
     simulation_time = read_timer( ) - simulation_time;
-    if (true) {  
+    MPI_Reduce(&simulation_time,&rst,1,MPI_DOUBLE,MPI_MAX,0,MPI_COMM_WORLD);
+    if (rank == 0) {  
       printf( "n = %d, simulation time = %g seconds", n, simulation_time);
 
       if( find_option( argc, argv, "-no" ) == -1 ){
