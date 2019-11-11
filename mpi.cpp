@@ -51,6 +51,8 @@ int main( int argc, char **argv )
     MPI_Init( &argc, &argv );
     MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+    //cout << "number of procs is: " << n_proc << endl;
+
 
     //
     //  allocate generic resources
@@ -92,9 +94,9 @@ int main( int argc, char **argv )
     //MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
     
     //broadcast particles to every thread
-    for (int i = 0; i < n; i++){
-      MPI_Bcast(&particles[i], 1, PARTICLE, 0, MPI_COMM_WORLD);
-    }
+    // for (int i = 0; i < n; i++){
+    MPI_Bcast(particles, n, PARTICLE, 0, MPI_COMM_WORLD);
+    //}
     //calculate the gridSize, binSize, and then number of bin on one side;
     double gridSize = sqrt(n * density);
     double binSize = cutoff * 2;     // equals to the diameter of the circle
@@ -202,14 +204,14 @@ int main( int argc, char **argv )
       //MPI_Barrier(MPI_COMM_WORLD);
 
       for (int i = rank*particle_per_proc ; i<rank*particle_per_proc+nlocal ; i++){
-        MPI_Gather(&temp[i], 1, PARTICLE, &temp[i], 1, PARTICLE, 0, MPI_COMM_WORLD);
+        MPI_Gather(&temp[i], 1, PARTICLE, &temp[i], nlocal, PARTICLE, 0, MPI_COMM_WORLD);
         //MPI_Allgather(&temp[i], 1, PARTICLE, &temp[i], 1, PARTICLE, MPI_COMM_WORLD);
       }
       // MPI_Allgatherv(temp, n, PARTICLE, temp, n, partition_offsets, PARTICLE, MPI_COMM_WORLD);
 
-      for (int i = 0; i<n;i++){
-        MPI_Bcast(&temp[i], 1, PARTICLE, 0, MPI_COMM_WORLD);
-      }
+      //for (int i = 0; i<n;i++){
+      MPI_Bcast(temp, n, PARTICLE, 0, MPI_COMM_WORLD);
+      //}
       
       for(int i = 0; i<n; i++){
         particles[i].x = temp[i].x;
