@@ -52,6 +52,7 @@ int main( int argc, char **argv )
     MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
     //cout << "number of procs is: " << n_proc << endl;
+    
 
 
     //
@@ -89,6 +90,7 @@ int main( int argc, char **argv )
     //  initialize and distribute the particles (that's fine to leave it unoptimized)
     //
     set_size( n );
+    
     if( rank == 0 )
       init_particles( n, particles );
     //MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
@@ -105,14 +107,16 @@ int main( int argc, char **argv )
 
     //initialize the grid
     vector<vector<int> > bin(NumberOfBins);
+    //particle_t temp[n];
 
     //
     //  simulate a number of time steps
     //
     double simulation_time = read_timer( );
+    cout<<rank<<endl;
     for( int step = 0; step < NSTEPS; step++ )
     {
-      particle_t temp[n];
+      
 
       navg = 0;
       dmin = 1.0;
@@ -185,15 +189,15 @@ int main( int argc, char **argv )
       //   temp[i]();
       // }
       
-      for(int i = rank*particle_per_proc ; i<rank*particle_per_proc+nlocal ; i++){
-        temp[i].x = particles[i].x;
-        temp[i].y = particles[i].y;
-        temp[i].ax = particles[i].ax;
-        temp[i].ay = particles[i].ay;
-        temp[i].vx = particles[i].vx;
-        temp[i].vy = particles[i].vy;
+      // for(int i = rank*particle_per_proc ; i<rank*particle_per_proc+nlocal ; i++){
+      //   temp[i].x = particles[i].x;
+      //   temp[i].y = particles[i].y;
+      //   temp[i].ax = particles[i].ax;
+      //   temp[i].ay = particles[i].ay;
+      //   temp[i].vx = particles[i].vx;
+      //   temp[i].vy = particles[i].vy;
 
-      }
+      // }
 
       for (int i = 0; i < binNum*binNum; i++){
         bin[i].resize(0);
@@ -204,23 +208,23 @@ int main( int argc, char **argv )
       //MPI_Barrier(MPI_COMM_WORLD);
 
       for (int i = rank*particle_per_proc ; i<rank*particle_per_proc+nlocal ; i++){
-        MPI_Gather(&temp[i], 1, PARTICLE, &temp[i], nlocal, PARTICLE, 0, MPI_COMM_WORLD);
+        MPI_Gather(&particles[i], 1, PARTICLE, &particles[i], nlocal, PARTICLE, 0, MPI_COMM_WORLD);
         //MPI_Allgather(&temp[i], 1, PARTICLE, &temp[i], 1, PARTICLE, MPI_COMM_WORLD);
       }
       // MPI_Allgatherv(temp, n, PARTICLE, temp, n, partition_offsets, PARTICLE, MPI_COMM_WORLD);
 
       //for (int i = 0; i<n;i++){
-      MPI_Bcast(temp, n, PARTICLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(particles, n, PARTICLE, 0, MPI_COMM_WORLD);
       //}
       
-      for(int i = 0; i<n; i++){
-        particles[i].x = temp[i].x;
-        particles[i].y = temp[i].y;
-        particles[i].ax = temp[i].ax;
-        particles[i].ay = temp[i].ay;
-        particles[i].vx = temp[i].vx;
-        particles[i].vy = temp[i].vy;
-      }
+      // for(int i = 0; i<n; i++){
+      //   particles[i].x = temp[i].x;
+      //   particles[i].y = temp[i].y;
+      //   particles[i].ax = temp[i].ax;
+      //   particles[i].ay = temp[i].ay;
+      //   particles[i].vx = temp[i].vx;
+      //   particles[i].vy = temp[i].vy;
+      // }
       
       //MPI_Barrier(MPI_COMM_WORLD);
       
