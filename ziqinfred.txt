@@ -1,0 +1,19 @@
+Feedback
+
+Serial
+ - Explanation: good
+ - Implementation: used vector of vector of cells, particles are processed in original order, so losing temporal locality by not processing all particles in same bin
+ - Results: OK
+34/34
+
+OpenMP
+ - Explanation: Not much explanation for what's parallelized and why.  Some explanation for problem with binning particles without synchronization.
+ - Implementation: Used 2D array of locks (initialized on stack, but ok)
+ - Results: Good strong scaling results for 10,000
+33/33
+
+MPI
+ - Explanation: Not clear that you understood the naive code or why it is inefficient.  
+ - Implementation: Attempted; code compiles but doesn't seem to run.
+ - Results: No results.
+11/33
